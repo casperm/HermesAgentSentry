@@ -1,5 +1,7 @@
 # 安全 Hermes Agent 主機技術棧
 
+[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
+
 適用於 Nous Research **Hermes Agent** 的生產就緒、高度安全且支援出站流量監控的 Docker Compose 部署包。
 
 本部署方案具備由 Cloudflare Tunnel 和 Nginx 反向代理構建的多層入站防禦，並結合了在共享網路命名空間內運行的 **Suricata 入侵檢測系統 (IDS)** 進行內聯出站封包嗅探。

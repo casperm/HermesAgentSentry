@@ -1,5 +1,7 @@
 # Secure Hermes Agent Host Stack
 
+[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
+
 A production-ready, highly secure, and egress-monitored Docker Compose deployment for the Nous Research **Hermes Agent**. 
 
 This stack features a multi-tiered ingress layer routed through a Cloudflare Tunnel and Nginx reverse proxy, coupled with inline egress packet sniffing using a **Suricata Intrusion Detection System (IDS)** inside a shared network namespace.
