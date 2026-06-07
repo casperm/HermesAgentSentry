@@ -10,7 +10,7 @@ This stack features a multi-tiered ingress layer routed through a Cloudflare Tun
 
 The following diagram illustrates how external traffic safely reaches the agent dashboard (Ingress), and how all outbound requests from the agent are analyzed inline by Suricata before hitting the internet (Egress):
 
-![Hermes Agent Secure Architecture](hermes_secure_architecture.png)
+![Hermes Agent Secure Architecture](md-assets/hermes_secure_architecture.png)
 
 ### Network Flow Flowchart
 ```mermaid
@@ -79,8 +79,9 @@ Each component is dockerized and orchestrated to fulfill a distinct architectura
 Ensure you have **Docker** and **Docker Compose** installed (or Colima running on macOS). 
 
 ### 2. Configure Environment Variables
-Create a `.env` file in the root directory by copying the sample template:
+Navigate to the `hermes-agent` directory and copy the sample template:
 ```bash
+cd hermes-agent
 cp .env.sample .env
 ```
 Then configure your API keys inside `.env`:
@@ -96,17 +97,17 @@ PERPLEXITY_API_KEY=your_perplexity_key
 ```
 
 ### 3. Run the Stack
-Start all services in detached mode:
+Start all services in detached mode from the `hermes-agent` directory:
 ```bash
 docker-compose up -d
 ```
 
 ### 4. Monitor Security Alerts
-To check Suricata's alerts in real time:
+To check Suricata's alerts in real time from the root directory:
 ```bash
-tail -f suricata_log/fast.log
+tail -f hermes-agent/suricata_log/fast.log
 ```
 Or to inspect structured event transactions:
 ```bash
-tail -f suricata_log/eve.json
+tail -f hermes-agent/suricata_log/eve.json
 ```

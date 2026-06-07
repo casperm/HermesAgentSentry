@@ -10,7 +10,7 @@
 
 下图展示了外部流量如何安全地到达 Agent 控制面板（入站），以及 Agent 的所有出站请求在访问互联网之前如何被 Suricata 进行内联分析（出站）：
 
-![Hermes Agent 安全架构](hermes_secure_architecture.png)
+![Hermes Agent 安全架构](md-assets/hermes_secure_architecture.png)
 
 ### 网络流向图
 ```mermaid
@@ -79,8 +79,9 @@ graph TD
 确保您已安装 **Docker** 和 **Docker Compose**（或在 macOS 上运行 Colima）。
 
 ### 2. 配置环境变量
-通过复制示例模板在根目录下创建一个 `.env` 文件：
+进入 `hermes-agent` 目录并复制示例模板：
 ```bash
+cd hermes-agent
 cp .env.sample .env
 ```
 然后在 `.env` 中配置您的 API 密钥：
@@ -96,17 +97,17 @@ PERPLEXITY_API_KEY=your_perplexity_key
 ```
 
 ### 3. 运行技术栈
-以守护进程模式启动所有服务：
+在 `hermes-agent` 目录下以守护进程模式启动所有服务：
 ```bash
 docker-compose up -d
 ```
 
 ### 4. 监控安全告警
-实时查看 Suricata 的告警信息：
+在项目根目录下实时查看 Suricata 的告警信息：
 ```bash
-tail -f suricata_log/fast.log
+tail -f hermes-agent/suricata_log/fast.log
 ```
 或者检查结构化的事件流：
 ```bash
-tail -f suricata_log/eve.json
+tail -f hermes-agent/suricata_log/eve.json
 ```
