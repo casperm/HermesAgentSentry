@@ -70,7 +70,11 @@ Each component is dockerized and orchestrated to fulfill a distinct architectura
 Ensure you have **Docker** and **Docker Compose** installed (or Colima running on macOS). 
 
 ### 2. Configure Environment Variables
-Create a `.env` file in the root directory (template pre-created) and configure your API keys:
+Create a `.env` file in the root directory by copying the sample template:
+```bash
+cp .env.sample .env
+```
+Then configure your API keys inside `.env`:
 ```env
 CLOUDFLARE_TUNNEL_TOKEN=your_cloudflare_tunnel_token
 
