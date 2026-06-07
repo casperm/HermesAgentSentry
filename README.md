@@ -10,6 +10,9 @@ This stack features a multi-tiered ingress layer routed through a Cloudflare Tun
 
 The following diagram illustrates how external traffic safely reaches the agent dashboard (Ingress), and how all outbound requests from the agent are analyzed inline by Suricata before hitting the internet (Egress):
 
+![Hermes Agent Secure Architecture](hermes_secure_architecture.png)
+
+### Network Flow Flowchart
 ```mermaid
 graph TD
     %% Ingress Flow
@@ -60,7 +63,13 @@ Each component is dockerized and orchestrated to fulfill a distinct architectura
 
 ### 4. Suricata (Egress Intrusion Detection System)
 *   **Why we need it**: Analyzes network packets flowing out of the AI agent.
-*   **Security Value**: Because LLM agents can run code, execute terminal shell commands, and interact with the web, they are susceptible to "jailbreaks" or prompt injections that could cause them to download malicious assets, trigger reverse shells, or leak data. Suricata sits directly on the shared network adapter (`eth0`), auditing all outbound requests (DNS queries, TLS SNI, HTTP hosts) and immediately flagging anomalies (such as reverse shells or blacklisted IP calls).
+*   **Security Value**: Because LLM agents can run arbitrary code, execute terminal commands, and perform tool-based web requests, they are highly susceptible to prompt injection, jailbreaks, or command hijacking. An attacker could force the agent to download malicious scripts, trigger reverse shells, or exfiltrate sensitive data. Suricata acts as an independent network-level firewall and audit logger, sniffing all outbound and inbound traffic on the virtual interface.
+*   **What makes Suricata outstanding in this setup**:
+    *   **Zero-Bypass Network Namespace Sharing**: By leveraging Docker's `network_mode: "service:hermes-suricata"`, the Hermes Agent container does not have its own network interface. It routes all traffic directly through Suricata's network stack. The agent cannot bypass or disable the monitoring engine because they share the exact same kernel network namespace.
+    *   **Least Privilege Isolation**: Traditional network sniffing requires running tools in host networking mode (`--net=host`), exposing the entire host's interfaces. Suricata operates solely inside the isolated container network namespace, using `CAP_NET_RAW` to capture packets via `AF_PACKET` on `eth0`. Even if Suricata itself is targeted by a packet-parser exploit, the attack is fully sandboxed inside the container namespace.
+    *   **High Performance AF_PACKET Zero-Copy**: Suricata utilizes Linux `AF_PACKET` in zero-copy ring buffer mode. This allows it to capture and inspect packets directly from kernel space memory with extremely low latency, ensuring no performance penalty is imposed on the AI agent's inference and network requests.
+    *   **Dynamic Protocol & Application-Layer Detection**: Attackers often try to hide malicious traffic by running it over standard ports (e.g., reverse shells over port 443). Suricata decodes application-layer protocols dynamically (HTTP, TLS, DNS, SSH, SMTP) regardless of the port number, extracting and auditing TLS Server Name Indication (SNI), DNS query logs, and HTTP request headers.
+    *   **Unified IDS and Logging (Eve JSON)**: Suricata does not just alert on matches against rules; it acts as a comprehensive Network Security Monitor (NSM). It outputs unified, structured JSON logs (`eve.json`) detailing every flow, DNS transaction, and TLS negotiation, facilitating immediate integration with SIEMs or custom log parsers.
 
 ---
 
