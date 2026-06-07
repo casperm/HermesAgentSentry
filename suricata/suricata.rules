@@ -1,0 +1,5 @@
+# Basic Suricata rules for Hermes Agent egress audit
+# ===================================================
+
+# Alert on HTTP traffic to identify domains
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"ET POLICY HTTP Egress"; flow:established,to_server; content:"Host|3a|"; http_header; classtype:policy-violation; sid:1000001; rev:1;)

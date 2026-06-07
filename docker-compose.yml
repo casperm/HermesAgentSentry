@@ -1,0 +1,113 @@
+# Secure Docker Compose stack for Hermes Agent
+# ==========================================================================
+# Architecture: Internet → cloudflared → nginx → hermes-agent (dashboard)
+# Egress:       hermes-agent → suricata (shared network namespace) → Internet
+# ==========================================================================
+
+name: hermes-agent
+
+services:
+  # ── Security Layer: Suricata IDS ────────────────────────────────────────
+  # Sniffs outbound traffic for the agent in the shared network namespace.
+  hermes-suricata:
+    image: jasonish/suricata:latest
+    container_name: hermes-suricata
+    hostname: suricata
+    restart: unless-stopped
+    networks:
+      - hermes_network
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    volumes:
+      - ./suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./suricata/logrotate.conf:/etc/logrotate.d/suricata:ro
+      - ./suricata/entrypoint.sh:/entrypoint.sh:ro
+      - ./suricata_log:/var/log/suricata
+      - ./suricata/suricata.rules:/var/lib/suricata/rules/suricata.rules:ro
+      - ./suricata/hermes-agent.rules:/var/lib/suricata/rules/hermes-agent.rules:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f suricata > /dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Application Layer: Hermes Agent Dashboard ───────────────────────────
+  # Shares the network namespace of suricata so all its traffic goes through IDS.
+  hermes-agent:
+    image: nousresearch/hermes-agent:latest
+    container_name: hermes-agent
+    restart: unless-stopped
+    network_mode: "service:hermes-suricata"
+    command: ["sleep", "infinity"]
+    environment:
+      - HERMES_DASHBOARD=true
+      - HERMES_DASHBOARD_HOST=0.0.0.0
+      - HERMES_DASHBOARD_PORT=9119
+      - HERMES_DASHBOARD_INSECURE=true
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - AWS_PROFILE=${AWS_PROFILE}
+      - BRAVE_API_KEY=${BRAVE_API_KEY}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - DEEPINFRA_API_KEY=${DEEPINFRA_API_KEY}
+    volumes:
+      - ./hermes_data:/opt/data
+    depends_on:
+      hermes-suricata:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import socket; s = socket.socket(); s.connect((\"127.0.0.1\", 9119))' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Ingress Layer 2: Nginx Reverse Proxy ────────────────────────────────
+  # Proxies internal traffic to the shared network namespace (suricata:9119).
+  hermes-nginx:
+    image: nginx:1.25-alpine
+    container_name: hermes-nginx
+    hostname: nginx
+    restart: unless-stopped
+    networks:
+      - hermes_network
+    ports:
+      - 80
+    volumes:
+      - ./nginx_logs:/var/log/nginx
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      hermes-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1/nginx-health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ── Ingress Layer 1: Cloudflare Tunnel ──────────────────────────────────
+  # Connects from outer internet and routes to hermes-nginx:80.
+  hermes-cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: hermes-cloudflared
+    hostname: cloudflared
+    restart: unless-stopped
+    networks:
+      - hermes_network
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run
+    depends_on:
+      hermes-nginx:
+        condition: service_healthy
+
+networks:
+  hermes_network:
+    name: hermes_network
+    driver: bridge
